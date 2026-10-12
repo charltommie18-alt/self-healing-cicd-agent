@@ -1,0 +1,41 @@
+stages:
+  - install
+  - lint
+  - deploy
+
+# Stage 1: Install dependencies
+install_deps:
+  stage: install
+  image: node:18
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+# Stage 2: Lint (This will FAIL initially, triggering the Agent)
+lint_code:
+  stage: lint
+  image: node:18
+  script:
+    - npm run lint
+  # Allow the job to fail so the pipeline doesn't completely halt 
+  # before the agent can read the failure, but mark it as a failure state.
+  allow_failure: true 
+
+# Stage 3: Deploy to Google Cloud Run (Runs after agent fixes the code)
+deploy_to_gcp:
+  stage: deploy
+  image: google/cloud-sdk:latest
+  script:
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/key.json
+    - gcloud auth activate-service-account --key-file=/tmp/key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/self-healing-app:$CI_COMMIT_SHORT_SHA
+    - gcloud run deploy self-healing-app --image gcr.io/$GCP_PROJECT_ID/self-healing-app:$CI_COMMIT_SHORT_SHA --platform managed --region us-central1 --allow-unauthenticated
+  only:
+    - main # Only deploy to main after the agent's MR is merged
+  variables:
+    # These must be set in GitLab CI/CD Settings > Variables
+    GCP_PROJECT_ID: "your-gcp-project-id"
+    GCP_SERVICE_ACCOUNT_KEY: "your-gcp-service-account-json"
