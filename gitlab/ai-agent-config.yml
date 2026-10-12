@@ -1,0 +1,37 @@
+# GitLab Duo Agent Configuration: Self-Healing Linter
+agent_name: "Self-Healing Lint Agent"
+description: "Automatically detects linting failures in CI/CD, fixes the code, and opens a Merge Request."
+
+trigger:
+  event: pipeline_failed
+  condition: "job_name == 'lint_code'"
+
+actions:
+  - name: "analyze_failure"
+    type: "read_logs"
+    target: "lint_code"
+    
+  - name: "apply_fix"
+    type: "execute_command"
+    command: "npm run lint:fix"
+    
+  - name: "create_branch_and_commit"
+    type: "git_operation"
+    branch_name: "auto-fix/lint-errors-${CI_COMMIT_SHORT_SHA}"
+    commit_message: "chore: auto-fix linting errors via GitLab Duo Agent"
+    
+  - name: "open_merge_request"
+    type: "gitlab_api"
+    action: "create_mr"
+    target_branch: "main"
+    source_branch: "auto-fix/lint-errors-${CI_COMMIT_SHORT_SHA}"
+    title: "🤖 Auto-Fix: Linting errors resolved by GitLab Duo Agent"
+    description: |
+      I detected a failure in the `lint_code` job. 
+      
+      **Actions taken:**
+      1. Analyzed the ESLint failure logs.
+      2. Ran `npm run lint:fix` to automatically resolve formatting and unused variable issues.
+      3. Committed the changes to a new branch.
+      
+      Please review and approve this MR. Once merged, the CI/CD pipeline will pass and deploy to Google Cloud.
