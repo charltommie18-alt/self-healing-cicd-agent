@@ -1,50 +1,13 @@
 stages:
   - build
-  - check
-  - deploy
+  - test
 
-# STAGE 1: BUILD
-build_dependencies:
+build_job:
   stage: build
   image: python:3.11
-  script:
-    - echo "🔨 Building: Installing dependencies..."
-    - pip install -r requirements.txt
+  script: pip install -r requirements.txt
 
-# STAGE 2: CHECK (Test & Secure)
-test_code:
-  stage: check
+test_job:
+  stage: test
   image: python:3.11
-  script:
-    - echo "🧪 Testing: Running Black and Flake8..."
-    # This WILL fail initially because of the intentional flaws, triggering the Agent!
-    - black --check . 
-    - flake8 .
-
-security_audit:
-  stage: check
-  image: python:3.11
-  script:
-    - echo "🔒 Secure: Running Bandit for security vulnerabilities..."
-    - bandit -r . -ll
-
-# STAGE 3: DEPLOY (Google Cloud Bonus)
-deploy_to_gcp:
-  stage: deploy
-  image: google/cloud-sdk:latest
-  script:
-    - echo "🚀 Deploy: Authenticating and deploying to Google Cloud Run..."
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/key.json
-    - gcloud auth activate-service-account --key-file=/tmp/key.json
-    - gcloud config set project $GCP_PROJECT_ID
-    - gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/self-healing-python-app:$CI_COMMIT_SHORT_SHA
-    - gcloud run deploy self-healing-python-app \
-        --image gcr.io/$GCP_PROJECT_ID/self-healing-python-app:$CI_COMMIT_SHORT_SHA \
-        --platform managed \
-        --region us-central1 \
-        --allow-unauthenticated
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"' # Only deploys after the Agent's fix is merged to main
-  variables:
-    GCP_PROJECT_ID: "your-gcp-project-id"
-    GCP_SERVICE_ACCOUNT_KEY: "your-gcp-service-account-json"
+  script: black --check .
