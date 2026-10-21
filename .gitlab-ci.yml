@@ -1,13 +1,18 @@
 stages:
   - build
-  - test
+  - check
 
-build_job:
+install_deps:
   stage: build
   image: python:3.11
-  script: pip install -r requirements.txt
+  script:
+    - pip install -r requirements.txt
 
-test_job:
-  stage: test
+run_checks:
+  stage: check
   image: python:3.11
-  script: black --check .
+  script:
+    - echo "Running self-healing checks..."
+    - black --check .
+    - flake8 .
+    - bandit -r . -ll
